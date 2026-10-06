@@ -1,72 +1,135 @@
 #include <stdio.h>
 #include <ctype.h>
+#include <limits.h>
+#define MAX_LENGTH 1000
+
+int readNumber(const char inputExp[], int *i, long long *number, int sign);
+int evaluateExpression(const char inputExp[], long long *result);
 int main() {
-    char inputExp[1000];
+    char inputExp[MAX_LENGTH];
     long long result = 0;
+
+    if(fgets(inputExp, sizeof(inputExp), stdin) == NULL) {
+        printf("Error: Invalid expression.\n");
+        return 0;
+    }
+
+    if (!evaluateExpression(inputExp, &result)) {
+        return 0;
+    }
+    printf("%lld\n", result);
+    return 0;
+}
+int readNumber(const char inputExp[], int *i, long long *number, int sign) {
+    long long currvalue = 0;
+    int digit;
+    while(isdigit((unsigned char)inputExp[*i])) {
+        digit = inputExp[*i] - '0';
+        if(sign == 1) {
+            if (currvalue > (LLONG_MAX - digit) / 10) {
+                return 0;
+            }
+        }
+        else {
+            // Neg nums can go up to LLONG_MAX + 1
+            if(currvalue > ((unsigned long long)LLONG_MAX + 1 - digit) / 10) {
+                return 0;
+            }
+        }
+        currvalue = currvalue * 10 + digit;
+        (*i)++;
+    }
+    if(sign == -1) {
+        *number = -(long long)currvalue;
+    }
+    else {
+        *number = currvalue;
+    }
+
+    return 1;
+}
+int evaluateExpression(const char inputExp[], long long *result) {
     long long term = 0;
-    long long num = 0;
-    char ope = '+';
+    long long number = 0;
+    char operation = '+';
 
     int i = 0;
     int needNum = 1; // 1 means we are expecting a number and 0 means expecting an operator
     int sign = 1;
-
-    fgets(inputExp, sizeof(inputExp), stdin);
+    int signUsedAlready = 0;
 
     while(inputExp[i] != '\0' && inputExp[i] != '\n') {
-        if(isspace(inputExp[i])) {
+        if(isspace((unsigned char)inputExp[i])) {
             i++;
             continue;
         }
         if((inputExp[i] == '+' || inputExp[i] == '-') && needNum) {
-            if(inputExp[i] == '-') {
-                sign = -sign;
+            // by this, --5, +-5, -+5, ++5 will be invalid expressions
+            if(signUsedAlready) {
+                printf("Error: Invalid expression.\n");
+                return 0;
             }
+            if(inputExp[i] == '-') {
+                sign = -1;
+            }
+            signUsedAlready = 1;
             i++;
             continue;
         }
 
-        if(isdigit(inputExp[i])) {
+        if(isdigit((unsigned char)inputExp[i])) {
             if(!needNum) {
                 printf("Error: Invalid expression.\n");
                 return 0;
             }
-            num = 0;
-            while(isdigit(inputExp[i])) {
-                num = num * 10 + (inputExp[i] - '0');
-                i++;
+            if(!readNumber(inputExp, &i, &number, sign)) {
+                printf("Error: Invalid expression.\n");
+                return 0;
             }
-            num = num * sign;
             sign = 1;
+            signUsedAlready = 0;
             needNum = 0;
 
-            if(ope == '+') {
-                result += term;
-                term = num;
+            if(operation == '+') {
+                *result += term;
+                term = number;
             }
-            else if(ope == '-') {
-                result += term;
-                term = -num;
+            else if(operation == '-') {
+                *result += term;
+                term = -number;
             }
-            else if(ope == '*') {
-                term = term * num;
+            else if(operation == '*') {
+                if (number != 0 &&
+                    ((term > 0 && number > 0 && term > LLONG_MAX / number) ||
+                     (term < 0 && number < 0 && term < LLONG_MAX / number) || (term > 0 && number < 0 && number < LLONG_MIN / term) ||
+                     (term < 0 && number > 0 && term < LLONG_MIN / number))) {
+
+                    printf("Error: Invalid expression.\n");
+                    return 0;
+                }
+                term = term * number;
             }
-            else if(ope == '/') {
-                if(num == 0) {
+            else if(operation == '/') {
+                if(number == 0) {
                     printf("Error: Division by zero.\n");
                     return 0;
                 }
-                term = term / num;
+                if(term == LLONG_MIN && number == -1) {
+                    printf("Error: Invalid expression.\n");
+                    return 0;
+                }
+                term = term / number;
             }
         }
         else if(inputExp[i] == '+' || inputExp[i] == '-' || inputExp[i] == '*' || inputExp[i] == '/') {
-
             if(needNum) {
                 printf("Error: Invalid expression.\n");
                 return 0;
             }
-            ope = inputExp[i];
+            operation = inputExp[i];
             needNum = 1;
+            sign = 1;
+            signUsedAlready = 0;
             i++;
         }
         else {
@@ -74,13 +137,14 @@ int main() {
             return 0;
         }
     }
-
     if(needNum) {
         printf("Error: Invalid expression.\n");
         return 0;
     }
-    result += term;
-    printf("%lld\n", result);
-    return 0;
+    if((term > 0 && *result > LLONG_MAX - term) || (term < 0 && *result < LLONG_MIN - term)) {
+        printf("Error: Invalid expression.\n");
+        return 0;
+    }
+    *result += term;
+    return 1;
 }
-
