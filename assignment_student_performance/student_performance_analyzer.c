@@ -6,6 +6,8 @@
 #define GRADE_B_MINIMUM 70
 #define GRADE_C_MINIMUM 50
 #define GRADE_D_MINIMUM 35
+#define MAXIMUM_MARKS 100
+#define MINIMUM_MARKS 0
 struct Student {
     unsigned int rollNo;
     char name[NAME_SIZE];
@@ -20,17 +22,17 @@ int inputStudent(struct Student *student) {
         printf("Invalid name!\n");
         return 0;
     }
-    for(int j=0; j<SUBJECT_COUNT; j++) {
+    for(int subjectIndex = 0; subjectIndex<SUBJECT_COUNT; subjectIndex++) {
         int mark;
         if(scanf("%d", &mark) != 1) {
             printf("Invalid marks!\n");
             return 0;
         }
-        if(mark < 0 || mark > 100) {
-            printf("Invalid marks! Marks should be between 0 - 100\n");
+        if(mark < MINIMUM_MARKS || mark >MAXIMUM_MARKS) {
+            printf("Invalid marks! Marks should be between %d - %d\n", MINIMUM_MARKS, MAXIMUM_MARKS);
             return 0;
         }
-        student->marks[j] = mark;
+        student->marks[subjectIndex] = mark;
     }
     return 1;
 }
@@ -43,8 +45,8 @@ void displayStudentDetails(struct Student *student, int total, double average, c
 }
 int totalMarks(unsigned int marks[]) {
   int total = 0;
-  for(int i=0; i<SUBJECT_COUNT; i++) {
-      total += marks[i];
+  for(int subjectIndex=0; subjectIndex<SUBJECT_COUNT; subjectIndex++) {
+      total += marks[subjectIndex];
   }
   return total;
 }
@@ -86,7 +88,7 @@ void performanceRating(char grade) {
                   break;
     }
     printf("Performance: ");
-    for(int i=0; i < stars; i++) {
+    for(int starIndex=0; starIndex < stars; starIndex++) {
         printf("*");
     }
     printf("\n");
@@ -107,8 +109,8 @@ int main() {
         return 1;
     }
     struct Student students[MAXIMUM_STUDENTS];
-    for(int i=0; i < noOfStudents; i++) {
-      if(!inputStudent(&students[i])) {
+    for(int studentIndex=0; studentIndex < noOfStudents; studentIndex++) {
+      if(!inputStudent(&students[studentIndex])) {
             return 1;
         }
     }
@@ -118,7 +120,7 @@ int main() {
         char grade = studentGrade(average);
     
         displayStudentDetails(&students[i], total, average, grade);
-        if(average < 35) {
+        if(average < GRADE_D_MINIMUM) {
           continue;
         }
         performanceRating(grade);
