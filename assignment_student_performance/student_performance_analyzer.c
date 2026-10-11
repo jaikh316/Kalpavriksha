@@ -114,12 +114,12 @@ int main() {
             return 1;
         }
     }
-    for(int i=0; i < noOfStudents; i++) {
-        int total = totalMarks(students[i].marks);
+    for(int studentIndex=0; studentIndex < noOfStudents; studentIndex++) {
+        int total = totalMarks(students[studentIndex].marks);
         double average = averageMarks(total, SUBJECT_COUNT);
         char grade = studentGrade(average);
     
-        displayStudentDetails(&students[i], total, average, grade);
+        displayStudentDetails(&students[studentIndex], total, average, grade);
         if(average < GRADE_D_MINIMUM) {
           continue;
         }
