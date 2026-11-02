@@ -5,144 +5,148 @@
 #define MIN_MATRIX_SIZE 2
 #define MAX_MATRIX_SIZE 10
 #define MAX_INTENSITY 255
-#define INTENSITY_RANGE (MAX_INTENSITY + 1) 
-#define NEIGHBOR_RADIUS 1                    
+#define INTENSITY_RANGE (MAX_INTENSITY + 1)
+#define NEIGHBOR_RADIUS 1
 #define PRINT_FIELD_WIDTH 3
 
-void releaseMatrix(int **matrix, int **cellsEnd)
-{
-    int **cellPointer;
-    for(cellPointer=matrix; cellPointer < cellsEnd; cellPointer++) {
-      free(*cellPointer);
-    }
-    free(matrix);
-}
+typedef struct {
+    int **cells;
+    int *values;
+    int size;
+} SonarMatrix;
 
-void freeMatrix(int **matrix, int size) {
-  releaseMatrix(matrix, matrix + size * size);
-}
-
-int readMatrixSize(int *size)
-{
-    printf("Enter matrix size(%d-%d): ", MIN_MATRIX_SIZE, MAX_MATRIX_SIZE);
-    if (scanf("%d", size) != 1)
+int readMatrixSize(int *matrixSize) {
+    printf("Enter matrix size (%d-%d): ", MIN_MATRIX_SIZE, MAX_MATRIX_SIZE);
+    if(scanf("%d", matrixSize) != 1) {
         return 0;
-    return (*size >= MIN_MATRIX_SIZE && *size <= MAX_MATRIX_SIZE);
+    }
+    return (*matrixSize >= MIN_MATRIX_SIZE && *matrixSize <= MAX_MATRIX_SIZE);
 }
 
-int **createMatrix(int size)
-{
-    int **cellPointer;
-    int **matrix = malloc((size_t)size * size * sizeof(int *));
-    int **matrixEnd;
+SonarMatrix createMatrix(int matrixSize) {
+    SonarMatrix matrix;
 
-    if (matrix == NULL)
-        return NULL;
+    int **currentCell;
+    int cellIndex;
+    int totalCells = matrixSize * matrixSize;
+    matrix.size = matrixSize;
+    matrix.cells = malloc((size_t)totalCells * sizeof(int *));
+    matrix.values = malloc((size_t)totalCells * sizeof(int));
 
-    matrixEnd = matrix + size * size;
-    for (cellPointer = matrix; cellPointer < matrixEnd; cellPointer++)
-    {
-        *cellPointer = malloc(sizeof(int));
-        if(*cellPointer== NULL)
-        {
-            releaseMatrix(matrix, cellPointer); 
-            return NULL;
-        }
-        **cellPointer = rand() % INTENSITY_RANGE;
+    if(matrix.cells == NULL || matrix.values == NULL) {
+        free(matrix.cells);
+        free(matrix.values);
+        matrix.cells = NULL;
+        matrix.values = NULL;
+        return matrix;
+    }
+
+    for(currentCell = matrix.cells, cellIndex = 0; currentCell < matrix.cells + totalCells; currentCell++, cellIndex++) {
+        *currentCell = matrix.values + cellIndex;
     }
     return matrix;
 }
 
+void generateRandomMatrix(SonarMatrix *matrix) {
+    int **currentCell;
+    int **matrixEnd = matrix->cells + matrix->size * matrix->size;
 
-void printMatrix(int **matrix, int size)
-{
-    int **cellPointer;
-    int **matrixEnd = matrix + size * size;
+    for(currentCell = matrix->cells; currentCell < matrixEnd; currentCell++) {
+        **currentCell = rand() % INTENSITY_RANGE;
+    }
+}
+
+void printMatrix(SonarMatrix *matrix) {
+    int **currentCell;
+    int **matrixEnd = matrix->cells + matrix->size * matrix->size;
+
     int cellsPrintedInRow = 0;
-
-    for (cellPointer = matrix; cellPointer < matrixEnd; cellPointer++)
-    {
-        printf("%*d ", PRINT_FIELD_WIDTH, **cellPointer);
+    for(currentCell = matrix->cells; currentCell < matrixEnd; currentCell++) {
+        printf("%*d ", PRINT_FIELD_WIDTH, **currentCell);
         cellsPrintedInRow++;
-        if (cellsPrintedInRow == size)
-        {
+        if(cellsPrintedInRow == matrix->size) {
             printf("\n");
             cellsPrintedInRow = 0;
         }
     }
+    printf("\n");
 }
 
-void printStage(const char *title, int **matrix, int size)
-{
+void printStage(const char *title, SonarMatrix *matrix) {
     printf("%s\n", title);
-    printMatrix(matrix, size);
+    printMatrix(matrix);
 }
 
+void freeMatrix(SonarMatrix *matrix) {
+    free(matrix->values);
+    free(matrix->cells);
 
-void swapAddresses(int **first, int **second)
-{
-    int *swapAddress = *first;  
-    *first  = *second;
-    *second = swapAddress;
+    matrix->values = NULL;
+    matrix->cells = NULL;
 }
 
-void transposeMatrix(int **matrix, int size)
-{
-    int row, column;
-    for (row = 0; row < size; row++)
-    {
-        for (column = row + 1; column < size; column++)
-        {
-            swapAddresses(matrix + row * size + column, matrix + column * size + row);
-        }
-    }
+void swapAddresses(int **first, int **second) {
+    int *temporaryAddress = *first;
+    *first = *second;
+    *second = temporaryAddress;
 }
 
-void reverseEachRow(int **matrix, int size)
-{
-    int **leftSlot, **rightSlot;
+void transposeMatrix(SonarMatrix *matrix) {
     int row;
-    for (row = 0; row < size; row++)
-    {
-        leftSlot = matrix + row * size;
-        rightSlot = leftSlot + size - 1;
+    int column;
+    int matrixSize = matrix->size;
 
-        while (leftSlot < rightSlot)
-        {
-            swapAddresses(leftSlot, rightSlot);
-            leftSlot++;
-            rightSlot--;
+    for(row = 0; row < matrixSize; row++) {
+        for(column = row+1; column < matrixSize; column++) {
+            swapAddresses(matrix->cells + row * matrixSize + column, matrix->cells + column * matrixSize + row);
         }
     }
 }
 
-void rotateMatrixClockwise(int **matrix, int size) {
-    transposeMatrix(matrix, size);
-    reverseEachRow(matrix, size);
+void reverseEachRow(SonarMatrix *matrix) {
+    int row;
+    int matrixSize = matrix->size;
+    int **leftCell;
+    int **rightCell;
+
+    for(row = 0; row < matrixSize; row++) {
+        leftCell = matrix->cells + row * matrixSize;
+        rightCell = leftCell + matrixSize - 1;
+
+        while(leftCell < rightCell) {
+            swapAddresses(leftCell, rightCell);
+            leftCell++;
+            rightCell--;
+        }
+    }
 }
 
-
-int isInsideMatrix(int row, int column, int size) {
-  return (row >= 0 && row < size && column >= 0 && column < size);
+void rotateMatrixClockwise(SonarMatrix *matrix) {
+    transposeMatrix(matrix);
+    reverseEachRow(matrix);
 }
 
-int averageAroundCell(int **matrix, int size, int row, int column)
-{
-    int rowOffset, columnOffset;
-    int neighborRow, neighborColumn;
+int isInsideMatrix(int row, int column, int matrixSize) {
+    return (row >= 0 && row< matrixSize && column >=0 && column < matrixSize);
+}
+
+int averageAroundCell(SonarMatrix *matrix, int row, int column) {
+    int rowOffset;
+    int columnOffset;
+    int neighborRow;
+    int neighborColumn;
     int neighborSum = 0;
     int neighborCount = 0;
+    int matrixSize =matrix->size;
 
-    for (rowOffset = -NEIGHBOR_RADIUS; rowOffset <= NEIGHBOR_RADIUS; rowOffset++)
-    {
-        for (columnOffset = -NEIGHBOR_RADIUS; columnOffset <= NEIGHBOR_RADIUS; columnOffset++)
-        {
+    for(rowOffset = -NEIGHBOR_RADIUS; rowOffset <= NEIGHBOR_RADIUS; rowOffset++) {
+        for(columnOffset = -NEIGHBOR_RADIUS; columnOffset <= NEIGHBOR_RADIUS; columnOffset++) {
             neighborRow = row + rowOffset;
             neighborColumn = column + columnOffset;
 
-            if (isInsideMatrix(neighborRow, neighborColumn, size))
-            {
-                neighborSum += **(matrix + neighborRow * size + neighborColumn) % INTENSITY_RANGE;
+            if(isInsideMatrix(neighborRow, neighborColumn, matrixSize)) {
+                int **neighborCell = matrix->cells + neighborRow * matrixSize + neighborColumn;
+                neighborSum += **neighborCell % INTENSITY_RANGE;
                 neighborCount++;
             }
         }
@@ -150,60 +154,58 @@ int averageAroundCell(int **matrix, int size, int row, int column)
     return neighborSum / neighborCount;
 }
 
-void encodeAveragesInCells(int **matrix, int size)
-{
-    int row, column;
+void encodeAveragesInCells(SonarMatrix *matrix) {
+    int row;
+    int column;
+    int matrixSize = matrix->size;
     int **currentCell;
 
-    for (row = 0; row < size; row++)
-    {
-        for (column = 0; column < size; column++)
-        {
-            currentCell = matrix + row * size + column;
-            **currentCell = (**currentCell % INTENSITY_RANGE)
-                          + averageAroundCell(matrix, size, row, column) * INTENSITY_RANGE;
+    for(row = 0; row < matrixSize; row++) {
+        for(column = 0; column < matrixSize; column++) {
+            currentCell = matrix->cells + row * matrixSize + column;
+
+            **currentCell = (**currentCell % INTENSITY_RANGE) + averageAroundCell(matrix, row, column) * INTENSITY_RANGE;
         }
     }
 }
 
-void keepOnlyAverages(int **matrix, int size)
-{
+void keepOnlyAverages(SonarMatrix *matrix) {
     int **currentCell;
-    int **matrixEnd = matrix + size * size;
-
-    for (currentCell = matrix; currentCell < matrixEnd; currentCell++)
-        **currentCell = **currentCell / INTENSITY_RANGE;
+    int **matrixEnd = matrix->cells + matrix->size * matrix->size;
+    for (currentCell = matrix->cells; currentCell < matrixEnd; currentCell++) {
+        **currentCell /= INTENSITY_RANGE;
+    }
 }
 
-void applySmoothingFilter(int **matrix, int size) {
-  encodeAveragesInCells(matrix, size);
-  keepOnlyAverages(matrix, size);
+void applySmoothingFilter(SonarMatrix *matrix) {
+    encodeAveragesInCells(matrix);
+    keepOnlyAverages(matrix);
 }
 
-int main(void)
-{
+int main(void) {
     int matrixSize;
-    int **matrix;
-    if (!readMatrixSize(&matrixSize))
-    {
+    SonarMatrix sonarMatrix;
+
+    srand((unsigned int)time(NULL));
+    if(!readMatrixSize(&matrixSize)) {
         printf("Invalid matrix size.\n");
         return 1;
     }
 
-    srand((unsigned int)time(NULL));
-    matrix = createMatrix(matrixSize);
-    if (matrix == NULL)
-    {
+    sonarMatrix = createMatrix(matrixSize);
+    if(sonarMatrix.cells == NULL || sonarMatrix.values == NULL) {
         printf("Memory allocation failed.\n");
         return 1;
     }
+    generateRandomMatrix(&sonarMatrix);
+    printStage("Original Randomly Generated Matrix:", &sonarMatrix);
 
-    printStage("Original Randomly Generated Matrix:", matrix, matrixSize);
-    rotateMatrixClockwise(matrix, matrixSize);
-    printStage("Matrix after 90° Clockwise Rotation:", matrix, matrixSize);
-    applySmoothingFilter(matrix, matrixSize);
-    printStage("Matrix after Applying 3×3 Smoothing Filter:", matrix, matrixSize);
+    rotateMatrixClockwise(&sonarMatrix);
+    printStage("Matrix after 90-degree Clockwise Rotation:", &sonarMatrix);
 
-    freeMatrix(matrix, matrixSize);
+    applySmoothingFilter(&sonarMatrix);
+    printStage("Matrix after Applying 3x3 Smoothing Filter:", &sonarMatrix);
+
+    freeMatrix(&sonarMatrix);
     return 0;
 }
